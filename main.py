@@ -4,40 +4,44 @@ from chains import Chain
 from portfolio import Portfolio
 from utils import clean_text
 
-def create_streamlit_app(llm, portfolio, clean_text):
-    st.title("📧 Adithya's Cold Email Generator: AI-Powered Solutions for Personalized Outreach")
-    
-    url_input = st.text_input("Enter a URL:", value="https://jobs.nike.com/job/R-39013")
-    submit_button = st.button("Submit")
+def create_streamlit_app(llm, portfolio):
+    """Streamlit app for generating cold emails based on job descriptions."""
+    st.title("Adithya's Cold Email Generator")
+
+    url_input = st.text_input("Enter a Job Posting URL:", value="https://jobs.nike.com/job/R-39013")
+    submit_button = st.button("Generate Email")
 
     if submit_button:
         try:
-            # Load the webpage and extract job data
-            loader = WebBaseLoader([url_input])
-            data = clean_text(loader.load().pop().page_content)
-            
-            # Load the portfolio and extract job postings
+            loader = WebBaseLoader(url_input)
+            page_data = loader.load()
+
+            if not page_data:
+                st.error("No data found at the provided URL.")
+                return
+
+            data = clean_text(page_data[0].page_content)
             portfolio.load_portfolio()
             jobs = llm.extract_jobs(data)
-            
-            # Display job results and generate email
+
+            if not jobs:
+                st.warning("No job postings found in the extracted data.")
+                return
+
             for job in jobs:
                 skills = job.get('skills', [])
                 links = portfolio.query_links(skills)
                 email = llm.write_mail(job, links)
-                
-                # Show generated email
+
+                st.subheader(f"Cold Email for {job.get('role', 'Unknown Role')}")
                 st.code(email, language='markdown')
+
         except Exception as e:
-            st.error(f"An Error Occurred: {e}")
+            st.error(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
-    # Instantiate Chain and Portfolio classes
     chain = Chain()
     portfolio = Portfolio()
-    
-    # Configure Streamlit layout and title
+
     st.set_page_config(layout="wide", page_title="Cold Email Generator", page_icon="📧")
-    
-    # Start the app
-    create_streamlit_app(chain, portfolio, clean_text)
+    create_streamlit_app(chain, portfolio)
